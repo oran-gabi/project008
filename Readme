@@ -1,0 +1,11 @@
+## Register an Admin:
+
+#curl -X POST http://127.0.0.1:5000/register_admin -H "Content-Type: application/json" -d '{"username": "admin_user", "password": "admin_password"}'
+
+#Login as Admin:
+
+#curl -X POST http://127.0.0.1:5000/login -H "Content-Type: application/json" -d '{"username": "admin_user", "password": "admin_password"}'
+
+#Add a Book (Admin Only):
+
+#curl -X POST http://127.0.0.1:5000/books -H "Content-Type: application/json" -H "Authorization: Bearer <access_token>" -d '{"title": "Book Title", "author": "Author Name", "total_copies": 10, "available_copies": 10}'

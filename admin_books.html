@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Manage Books</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        h1 {
+            text-align: center;
+            margin-top: 20px;
+            color: #333;
+        }
+
+        .container {
+            width: 80%;
+            max-width: 1200px;
+            margin: 20px auto;
+            background-color: #fff;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            border-radius: 8px;
+        }
+
+        .book-list {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+
+        .book-list th, .book-list td {
+            padding: 12px;
+            border: 1px solid #ddd;
+            text-align: left;
+        }
+
+        .book-list th {
+            background-color: #4CAF50;
+            color: white;
+            font-weight: bold;
+        }
+
+        .book-list tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+
+        .book-list tr:hover {
+            background-color: #f1f1f1;
+        }
+
+        .form-container {
+            width: 100%;
+            max-width: 600px;
+            background-color: #fff;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .form-container h2 {
+            margin-top: 0;
+            margin-bottom: 20px;
+            color: #333;
+            font-size: 1.5rem;
+        }
+
+        .form-container .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-container label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .form-container input[type="text"],
+        .form-container input[type="number"] {
+            width: calc(100% - 22px);
+            padding: 10px;
+            margin: 5px 0 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 1rem;
+        }
+
+        .form-container button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+            padding: 12px 20px;
+            border-radius: 5px;
+            font-size: 1rem;
+            transition: background-color 0.3s ease;
+        }
+
+        .form-container button:hover {
+            background-color: #45a049;
+        }
+
+        .action-buttons {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+        }
+
+        .action-buttons button {
+            padding: 8px 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .action-buttons button.update {
+            background-color: #2196F3;
+            color: white;
+        }
+
+        .action-buttons button.delete {
+            background-color: #f44336;
+            color: white;
+        }
+
+        .action-buttons button:hover {
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Admin - Manage Books</h1>
+
+        <table class="book-list" id="book-table">
+            <thead>
+                <tr>
+                    <th>Title</th>
+                    <th>Author</th>
+                    <th>Genre</th>
+                    <th>Published Date</th>
+                    <th>Total Copies</th>
+                    <th>Available Copies</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="book-table-body">
+                <!-- Rows will be added dynamically here -->
+            </tbody>
+        </table>
+
+        <div class="form-container hidden" id="book-form-container">
+            <h2 id="form-title">Add Book</h2>
+            <input type="hidden" id="book-id">
+            <div class="form-group">
+                <label for="title">Title:</label>
+                <input type="text" id="title" placeholder="Title" required>
+            </div>
+            <div class="form-group">
+                <label for="author">Author:</label>
+                <input type="text" id="author" placeholder="Author" required>
+            </div>
+            <div class="form-group">
+                <label for="genre">Genre:</label>
+                <input type="text" id="genre" placeholder="Genre">
+            </div>
+            <div class="form-group">
+                <label for="published_date">Published Date:</label>
+                <input type="text" id="published_date" placeholder="Published Date">
+            </div>
+            <div class="form-group">
+                <label for="total_copies">Total Copies:</label>
+                <input type="number" id="total_copies" placeholder="Total Copies" required>
+            </div>
+            <div class="form-group">
+                <label for="available_copies">Available Copies:</label>
+                <input type="number" id="available_copies" placeholder="Available Copies" required>
+            </div>
+            <div class="action-buttons">
+                <button onclick="saveBook()" id="save-button">Save</button>
+                <button onclick="cancelEdit()" id="cancel-button" class="hidden">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script>
+        const token = localStorage.getItem('token');
+
+        function fetchBooks() {
+            axios.get('http://localhost:5000/books', {
+                headers: {
+                    Authorization: `Bearer ${token}`
+                }
+            })
+            .then(response => {
+                const books = response.data;
+                const tableBody = document.getElementById('book-table-body');
+                tableBody.innerHTML = '';
+                books.forEach(book => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${book.title}</td>
+                        <td>${book.author}</td>
+                        <td>${book.genre}</td>
+                        <td>${book.published_date}</td>
+                        <td>${book.total_copies}</td>
+                        <td>${book.available_copies}</td>
+                        <td class="action-buttons">
+                            <button class="update" onclick="showUpdateForm(${book.id})">Update</button>
+                            <button class="delete" onclick="deleteBook(${book.id})">Delete</button>
+                        </td>
+                    `;
+                    tableBody.appendChild(row);
+                });
+            })
+            .catch(error => console.error('Error fetching books:', error));
+        }
+
+        function showUpdateForm(bookId) {
+            axios.get(`http://localhost:5000/books/${bookId}`, {
+                headers: {
+                    Authorization: `Bearer ${token}`
+                }
+            })
+            .then(response => {
+                const book = response.data;
+                document.getElementById('book-id').value = book.id;
+                document.getElementById('title').value = book.title;
+                document.getElementById('author').value = book.author;
+                document.getElementById('genre').value = book.genre;
+                document.getElementById('published_date').value = book.published_date;
+                document.getElementById('total_copies').value = book.total_copies;
+                document.getElementById('available_copies').value = book.available_copies;
+                document.getElementById('form-title').textContent = 'Update Book';
+                document.getElementById('save-button').textContent = 'Update';
+                document.getElementById('cancel-button').classList.remove('hidden');
+                document.getElementById('book-form-container').classList.remove('hidden');
+            })
+            .catch(error => console.error('Error fetching book:', error));
+        }
+
+        function saveBook() {
+            const bookId = document.getElementById('book-id').value;
+            const title = document.getElementById('title').value;
+            const author = document.getElementById('author').value;
+            const genre = document.getElementById('genre').value;
+            const publishedDate = document.getElementById('published_date').value;
+            const totalCopies = document.getElementById('total_copies').value;
+            const availableCopies = document.getElementById('available_copies').value;
+
+            const bookData = {
+                title,
+                author,
+                genre,
+                published_date: publishedDate,
+                total_copies: totalCopies,
+                available_copies: availableCopies
+            };
+
+            if (bookId) {
+                // Update book
+                axios.put(`http://localhost:5000/books/${bookId}`, bookData, {
+                    headers: {
+                        Authorization: `Bearer ${token}`
+                    }
+                })
+                .then(() => {
+                    alert('Book updated successfully');
+                    cancelEdit();
+                    fetchBooks();
+                })
+                .catch(error => console.error('Error updating book:', error));
+            } else {
+                // Add new book
+                axios.post('http://localhost:5000/books', bookData, {
+                    headers: {
+                        Authorization: `Bearer ${token}`
+                    }
+                })
+                .then(() => {
+                    alert('Book added successfully');
+                    cancelEdit();
+                    fetchBooks();
+                })
+                .catch(error => console.error('Error adding book:', error));
+            }
+        }
+
+        function deleteBook(bookId) {
+            if (confirm('Are you sure you want to delete this book?')) {
+                axios.delete(`http://localhost:5000/books/${bookId}`, {
+                    headers: {
+                        Authorization: `Bearer ${token}`
+                    }
+                })
+                .then(() => {
+                    alert('Book deleted successfully');
+                    fetchBooks();
+                })
+                .catch(error => console.error('Error deleting book:', error));
+            }
+        }
+
+        function cancelEdit() {
+            document.getElementById('book-id').value = '';
+            document.getElementById('title').value = '';
+            document.getElementById('author').value = '';
+            document.getElementById('genre').value = '';
+            document.getElementById('published_date').value = '';
+            document.getElementById('total_copies').value = '';
+            document.getElementById('available_copies').value = '';
+            document.getElementById('form-title').textContent = 'Add Book';
+            document.getElementById('save-button').textContent = 'Save';
+            document.getElementById('cancel-button').classList.add('hidden');
+            document.getElementById('book-form-container').classList.add('hidden');
+        }
+
+        document.addEventListener('DOMContentLoaded', fetchBooks);
+    </script>
+</body>
+</html>
