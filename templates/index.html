@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Registration and Login</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            background-image: url('https://www.bookglow.net/wp-content/uploads/2017/06/11.jpg');
+            background-size: cover;
+            background-position: center;
+            height: 100vh;
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            padding-right: 50px; /* Adjust for responsiveness */
+        }
+        .form-container {
+            background: rgba(255, 255, 255, 0.8);
+            padding: 20px;
+            border-radius: 10px;
+            max-width: 400px;
+            width: 100%;
+            text-align: center;
+        }
+        .form-container h2 {
+            text-align: center;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 8px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        .form-group button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            cursor: pointer;
+            border-radius: 4px;
+            width: 100%;
+            font-size: 16px;
+        }
+        .form-group button:hover {
+            background-color: #45a049;
+        }
+        .error-message {
+            color: red;
+            margin-top: 10px;
+        }
+        .hidden {
+            display: none;
+        }
+        .show-register-button {
+            margin-top: 20px;
+            background-color: #008CBA;
+        }
+        .show-register-button:hover {
+            background-color: #007B9E;
+        }
+    </style>
+</head>
+<body>
+    <div class="form-container">
+        <div id="login-form">
+            <h2>User Login</h2>
+            <div class="form-group">
+                <label for="login-username">Username:</label>
+                <input type="text" id="login-username" name="username" required>
+            </div>
+            <div class="form-group">
+                <label for="login-password">Password:</label>
+                <input type="password" id="login-password" name="password" required>
+            </div>
+            <div class="form-group">
+                <button onclick="loginUser()">Login</button>
+            </div>
+            <div id="login-error-message" class="error-message"></div>
+        </div>
+        <button class="show-register-button" onclick="showRegisterForm()">Don't have an account? Register</button>
+        <div id="registration-form" class="hidden">
+            <h2>User Registration</h2>
+            <div class="form-group">
+                <label for="reg-username">Username:</label>
+                <input type="text" id="reg-username" name="username" required>
+            </div>
+            <div class="form-group">
+                <label for="reg-password">Password:</label>
+                <input type="password" id="reg-password" name="password" required>
+            </div>
+            <div class="form-group">
+                <label for="name">Full Name:</label>
+                <input type="text" id="name" name="name" required>
+            </div>
+            <div class="form-group">
+                <label for="phone">Phone Number:</label>
+                <input type="tel" id="phone" name="phone" required>
+            </div>
+            <div class="form-group">
+                <label for="email">Email:</label>
+                <input type="email" id="email" name="email">
+            </div>
+            <div class="form-group">
+                <label for="address">Address:</label>
+                <input type="text" id="address" name="address">
+            </div>
+            <div class="form-group">
+                <button onclick="registerUser()">Register</button>
+            </div>
+            <div id="reg-error-message" class="error-message"></div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script>
+        function showRegisterForm() {
+            document.getElementById('registration-form').classList.remove('hidden');
+        }
+
+        function registerUser() {
+            const username = document.getElementById('reg-username').value;
+            const password = document.getElementById('reg-password').value;
+            const name = document.getElementById('name').value;
+            const phone = document.getElementById('phone').value;
+            const email = document.getElementById('email').value;
+            const address = document.getElementById('address').value;
+
+            const userData = {
+                username: username,
+                password: password,
+                name: name,
+                phone_number: phone,
+                email: email,
+                address: address
+            };
+
+            axios.post('http://localhost:5000/register', userData)
+                .then(response => {
+                    console.log('Registration response:', response.data); // Debugging line
+                    alert('User registered successfully!');
+                    const token = response.data.access_token; // Adjust based on your API response
+                    localStorage.setItem('token', token); // Store token in localStorage
+                    console.log('Token stored:', token);
+                    
+                    // Redirect to the home page after registration
+                    window.location.href = 'http://127.0.0.1:5500/backend/templates/home.html'; // Replace with your home page URL
+                })
+                .catch(error => {
+                    console.error('Registration error:', error.response.data.message);
+                    document.getElementById('reg-error-message').textContent = error.response.data.message;
+                });
+        }
+
+        function loginUser() {
+            const username = document.getElementById('login-username').value;
+            const password = document.getElementById('login-password').value;
+
+            const loginData = {
+                username: username,
+                password: password
+            };
+
+            axios.post('http://localhost:5000/login',  { username: username, password: password })
+                .then(response => {
+                    console.log('Login response:', response.data); // Debugging line
+                    alert('User logged in successfully!');
+                    const token = response.data.access_token; // Adjust based on your API response
+                    localStorage.setItem('token', token); // Store token in localStorage
+                    console.log('Token stored:', token);
+                    
+                    // Redirect to the home page after login
+                    window.location.href = 'http://127.0.0.1:5500/backend/templates/home.html'; // Replace with your home page URL
+                })
+                .catch(error => {
+                    console.error('Login error:', error.response.data.message);
+                    document.getElementById('login-error-message').textContent = 'An error occurred during login.';
+                });
+        }
+    </script>
+</body>
+</html>

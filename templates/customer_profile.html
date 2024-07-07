@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <title>Customer Profile - Library Management System</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            padding-top: 70px; /* Adjust for fixed navbar height */
+            padding-bottom: 40px; /* Adjust for footer height */
+        }
+        .navbar {
+            overflow: hidden;
+            background-color: #333;
+            position: fixed;
+            top: 0;
+            width: 100%;
+            z-index: 1000; /* Ensure navbar stays on top */
+        }
+        .navbar a {
+            float: left;
+            display: block;
+            color: #f2f2f2;
+            text-align: center;
+            padding: 14px 16px;
+            text-decoration: none;
+        }
+        .navbar a:hover {
+            background-color: #ddd;
+            color: black;
+        }
+        .content {
+            padding: 20px;
+            padding-top: 60px; /* Adjust for fixed navbar */
+        }
+        .footer {
+            background-color: #333;
+            color: white;
+            text-align: center;
+            padding: 10px;
+            position: fixed;
+            left: 0;
+            bottom: 0;
+            width: 100%;
+            z-index: 1000; /* Ensure footer stays on top */
+        }
+        .loan-item {
+            margin-bottom: 20px;
+            border: 1px solid #ccc;
+            padding: 10px;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="navbar">
+    <a href="http://127.0.0.1:5500/backend/templates/home_client_user.html">Home</a>
+    <a href="http://127.0.0.1:5500/backend/templates/admin_books.html">Books</a>
+    <a href="http://127.0.0.1:5500/backend/templates/bookaddadmin.html">Manage Books</a>
+    <a href="#" style="float: right;">Logout</a>
+</div>
+
+<div class="content">
+    <h1>Customer Profile</h1>
+    <div id="customerDetails"></div>
+
+    <h2>Current Loans</h2>
+    <div id="currentLoans"></div>
+
+    <h2>Loan History</h2>
+    <div id="loanHistory"></div>
+</div>
+
+<div class="footer">
+    <p>&copy; 2024 Library Management System. All rights reserved.</p>
+</div>
+
+<script>
+    function getUrlParameter(name) {
+        name = name.replace(/[\[]/, '\\[').replace(/[\]]/, '\\]');
+        const regex = new RegExp('[\\?&]' + name + '=([^&#]*)');
+        const results = regex.exec(location.search);
+        return results === null ? '' : decodeURIComponent(results[1].replace(/\+/g, ' '));
+    }
+
+    async function fetchCustomerProfile() {
+        const bookId = getUrlParameter('book_id');
+
+        try {
+            // Fetch customer details
+            const responseCustomer = await axios.get('http://localhost:5000/customer/profile');
+            const customer = responseCustomer.data;
+
+            // Fetch current loans for the selected book
+            const responseLoans = await axios.get(`http://localhost:5000/customer/loans?book_id=${bookId}`);
+            const loans = responseLoans.data;
+
+            // Fetch loan history for the selected book
+            const responseHistory = await axios.get(`http://localhost:5000/customer/history?book_id=${bookId}`);
+            const history = responseHistory.data;
+
+            // Display customer details
+            const customerDetailsDiv = document.getElementById('customerDetails');
+            customerDetailsDiv.innerHTML = `
+                <h2>Welcome, ${customer.name}!</h2>
+                <p><strong>Email:</strong> ${customer.email}</p>
+                <p><strong>Phone:</strong> ${customer.phone}</p>
+            `;
+
+            // Display current loans
+            const currentLoansDiv = document.getElementById('currentLoans');
+            currentLoansDiv.innerHTML = '';
+            loans.forEach(loan => {
+                const loanDiv = document.createElement('div');
+                loanDiv.classList.add('loan-item');
+                loanDiv.innerHTML = `
+                    <h3>${loan.book.title}</h3>
+                    <p><strong>Due Date:</strong> ${loan.due_date}</p>
+                    <button onclick="returnBook(${loan.id})">Return Book</button>
+                `;
+                currentLoansDiv.appendChild(loanDiv);
+            });
+
+            // Display loan history
+            const loanHistoryDiv = document.getElementById('loanHistory');
+            loanHistoryDiv.innerHTML = '';
+            history.forEach(entry => {
+                const historyDiv = document.createElement('div');
+                historyDiv.classList.add('loan-item');
+                historyDiv.innerHTML = `
+                    <h3>${entry.book.title}</h3>
+                    <p><strong>Returned:</strong> ${entry.returned_date}</p>
+                `;
+                loanHistoryDiv.appendChild(historyDiv);
+            });
+
+        } catch (error) {
+            console.error('Error fetching customer profile:', error.message);
+            alert('Failed to fetch customer profile');
+        }
+    }
+
+    async function returnBook(loanId) {
+        try {
+            const response = await axios.patch(`http://localhost:5000/customer/return/${loanId}`);
+            alert(response.data.message);
+            fetchCustomerProfile(); // Refresh customer profile after returning book
+        } catch (error) {
+            console.error('Error returning book:', error.message);
+            alert('Failed to return book');
+        }
+    }
+
+    fetchCustomerProfile();
+</script>
+
+</body>
+</html>

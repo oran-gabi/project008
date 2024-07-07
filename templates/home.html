@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <title>Library Management System</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            padding-top: 70px; /* Adjust for fixed navbar height */
+            padding-bottom: 40px; /* Adjust for footer height */
+        }
+        .navbar {
+            overflow: hidden;
+            background-color: #333;
+            position: fixed;
+            top: 0;
+            width: 100%;
+            z-index: 1000; /* Ensure navbar stays on top */
+        }
+        .navbar a {
+            float: left;
+            display: block;
+            color: #f2f2f2;
+            text-align: center;
+            padding: 14px 16px;
+            text-decoration: none;
+        }
+        .navbar a:hover {
+            background-color: #ddd;
+            color: black;
+        }
+        .content {
+            padding: 20px;
+            padding-top: 60px; /* Adjust for fixed navbar */
+        }
+        .footer {
+            background-color: #333;
+            color: white;
+            text-align: center;
+            padding: 10px;
+            position: fixed;
+            left: 0;
+            bottom: 0;
+            width: 100%;
+            z-index: 1000; /* Ensure footer stays on top */
+        }
+        form {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+        }
+        input[type=text], input[type=number], input[type=file] {
+            width: 100%;
+            padding: 10px;
+            margin: 5px 0 15px 0;
+            display: inline-block;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        input[type=submit] {
+            background-color: #4CAF50;
+            color: white;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            float: right;
+        }
+        input[type=submit]:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+
+<div class="navbar">
+    <a href="http://127.0.0.1:5500/backend/templates/home.html" class="active">Home</a>
+    <a href="http://127.0.0.1:5500/backend/templates/admin_books.html">Books</a>
+    <a href="http://127.0.0.1:5500/backend/templates/bookaddadmin.html">menagebookunder</a>
+    <a href="http://127.0.0.1:5500/backend/templates/Admin - Manage Loans.html">Loans</a>
+    <a href="">#images</a>
+    <a href="http://127.0.0.1:5500/backend/templates/customer_profile.html">user profile</a>
+    <a href="http://127.0.0.1:5500/backend/templates/home_client_user.html">home client user</a>
+    <a href="http://127.0.0.1:5500/backend/templates/index.html" style="float: right;">Logout</a>
+</div>
+
+<div class="content">
+    <h1>Library Management System</h1>
+
+    <h1>Add Book with Image</h1>
+    <form id="addBookForm" enctype="multipart/form-data">
+        <label for="title">Title:</label>
+        <input type="text" id="title" name="title" required><br><br>
+        
+        <label for="author">Author:</label>
+        <input type="text" id="author" name="author" required><br><br>
+        
+        <label for="genre">Genre:</label>
+        <input type="text" id="genre" name="genre"><br><br>
+        
+        <label for="published_date">Published Date:</label>
+        <input type="text" id="published_date" name="published_date"><br><br>
+        
+        <label for="total_copies">Total Copies:</label>
+        <input type="number" id="total_copies" name="total_copies" required><br><br>
+        
+        <label for="available_copies">Available Copies:</label>
+        <input type="number" id="available_copies" name="available_copies" required><br><br>
+        
+        <label for="image">Select Image:</label>
+        <input type="file" id="image" name="image" accept="image/*" required><br><br>
+        
+        <button type="submit">Add Book</button>
+    </form>
+    <div id="message"></div>
+
+    <hr>
+
+    <h2>Book List</h2>
+    <div id="bookList"></div>
+</div>
+
+<div class="footer">
+    <p>&copy; 2024 Library Management System. All rights reserved.</p>
+</div>
+
+<script>
+document.getElementById('addBookForm').addEventListener('submit', function(event) {
+    event.preventDefault();
+
+    let formData = new FormData();
+    formData.append('title', document.getElementById('title').value);
+    formData.append('author', document.getElementById('author').value);
+    formData.append('genre', document.getElementById('genre').value);
+    formData.append('published_date', document.getElementById('published_date').value);
+    formData.append('total_copies', document.getElementById('total_copies').value);
+    formData.append('available_copies', document.getElementById('available_copies').value);
+    formData.append('image', document.getElementById('image').files[0]);
+
+    axios.post('http://localhost:5000/books', formData, {
+        headers: {
+            'Content-Type': 'multipart/form-data',
+            'Authorization': 'Bearer YOUR_ACCESS_TOKEN' // Replace with your JWT token
+        }
+    })
+    .then(response => {
+        console.log('Book added:', response.data);
+        document.getElementById('message').innerHTML = `<p>Book added successfully!</p>`;
+        fetchBooks(); // Refresh book list after successful addition
+    })
+    .catch(error => {
+        console.error('Error adding book:', error);
+        document.getElementById('message').innerHTML = `<p>Error adding book.</p>`;
+    });
+});
+
+// Function to fetch and display books
+function fetchBooks() {
+    axios.get('http://localhost:5000/books', {
+        headers: {
+            'Authorization': 'Bearer YOUR_ACCESS_TOKEN' // Replace with your JWT token logic
+        }
+    })
+    .then(response => {
+        const books = response.data;
+        const bookListDiv = document.getElementById('bookList');
+        bookListDiv.innerHTML = ''; // Clear previous list
+
+        books.forEach(book => {
+            const bookDiv = document.createElement('div');
+            bookDiv.innerHTML = `
+                <h3>${book.title}</h3>
+                <p><strong>Author:</strong> ${book.author}</p>
+                <p><strong>Genre:</strong> ${book.genre || 'N/A'}</p>
+                <p><strong>Published Date:</strong> ${book.published_date || 'N/A'}</p>
+                <p><strong>Total Copies:</strong> ${book.total_copies}</p>
+                <p><strong>Available Copies:</strong> ${book.available_copies}</p>
+                <img src="http://localhost:5000/media/${book.image_filename}" style="max-width: 200px; height: auto;">
+                <hr>
+            `;
+            bookListDiv.appendChild(bookDiv);
+        });
+    })
+    .catch(error => {
+        console.error('Error fetching books:', error);
+        alert('Failed to fetch books');
+    });
+}
+
+// Initial fetch of books
+fetchBooks();
+</script>
+
+</body>
+</html>

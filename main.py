@@ -1,13 +1,24 @@
-from flask import Flask, jsonify, request, send_from_directory
-from flask_sqlalchemy import SQLAlchemy
+from flask import Flask, jsonify, request, send_from_directory, Response
+import flask
+from flask_sqlalchemy import SQLAlchemy 
+from sqlalchemy import Column, Integer, String, Date, DateTime  
+from sqlalchemy.ext.declarative import declarative_base
 from flask_jwt_extended import JWTManager, jwt_required, create_access_token, get_jwt_identity
 from flask_cors import CORS
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
+from datetime import datetime
+
+# from app import app, db
+
+
 import os
 
+Base = declarative_base()
+
+
 # Initialize the Flask app
-app = Flask(__name__)
+app = Flask(__name__, static_url_path='/static', static_folder='frontend/static')
 
 # Configure the app
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///library.db'
@@ -15,11 +26,17 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['JWT_SECRET_KEY'] = 'your_jwt_secret_key'
 app.config['UPLOAD_FOLDER'] = os.path.join(os.getcwd(), 'media')
 app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024  # 5 MB max file size
+app.config['JWT_TOKEN_LOCATION'] = ['headers']
+app.config['JWT_HEADER_NAME'] = 'Authorization'
+app.config['JWT_HEADER_TYPE'] = 'Bearer'
+
+
 
 # Initialize extensions
 db = SQLAlchemy(app)
 jwt = JWTManager(app)
-CORS(app, resources={r"/*": {"origins": "http://127.0.0.1:5500"}}, supports_credentials=True)
+CORS(app, resources={r"/*": {"origins":  "http://127.0.0.1:5500"}}, supports_credentials=True)
+# cors = CORS(app, resources={r"/books": {"origins": "http://127.0.0.1:5500"}})
 
 # Allowed image extensions
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
@@ -30,13 +47,14 @@ def allowed_file(filename):
 
 # Define the models
 class Book(db.Model):
+    __tablename__ = 'book'
     id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(100), nullable=False)
-    author = db.Column(db.String(100), nullable=False)
-    genre = db.Column(db.String(50))
-    published_date = db.Column(db.String(20))
-    total_copies = db.Column(db.Integer, nullable=False)
-    available_copies = db.Column(db.Integer, nullable=False)
+    title = db.Column(db.String(255), nullable=False)
+    author = db.Column(db.String(255), nullable=False)
+    genre = db.Column(db.String(255))
+    published_date = db.Column(db.Date)
+    total_copies = db.Column(db.Integer, default=0)
+    available_copies = db.Column(db.Integer)
     is_deleted = db.Column(db.Boolean, default=False)
     image_filename = db.Column(db.String(255))
 
@@ -54,9 +72,9 @@ class Loan(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     book_id = db.Column(db.Integer, db.ForeignKey('book.id'), nullable=False)
     customer_id = db.Column(db.Integer, db.ForeignKey('customer.id'), nullable=False)
-    loan_date = db.Column(db.String(20))
-    return_date = db.Column(db.String(20))
-    due_date = db.Column(db.String(20))
+    loan_date = db.Column(DateTime)  # Use DateTime instead of String
+    return_date = db.Column(DateTime)  # Use DateTime instead of String
+    due_date = db.Column(DateTime)  # Use DateTime instead of String
     returned = db.Column(db.Boolean, default=False)
     is_deleted = db.Column(db.Boolean, default=False)
 
@@ -127,6 +145,10 @@ def register_admin():
     return jsonify(message="Admin registered successfully"), 201
 
 # Login endpoint
+@app.route('/login')
+def login_page():
+    return app.send_static_file('login.html')
+
 @app.route('/login', methods=['POST'])
 def login():
     data = request.get_json()
@@ -157,8 +179,11 @@ def role_required(role):
 @app.route('/books', methods=['GET'])
 @jwt_required()
 def get_books():
-    books = Book.query.filter_by(is_deleted=False).all()
-    return jsonify([book.as_dict() for book in books])
+    try:
+        books = Book.query.filter_by(is_deleted=False).all()
+        return jsonify([book.as_dict() for book in books])
+    except Exception as e:
+        return jsonify(error=str(e)), 500
 
 @app.route('/books/<int:id>', methods=['GET'])
 @jwt_required()
@@ -171,32 +196,32 @@ def get_book(id):
 @app.route('/books', methods=['POST'])
 @role_required('admin')
 def add_book():
-    data = request.get_json()
+    if 'image' not in request.files:
+        return jsonify({"error": "No file part"}), 400
 
-    # Validate request data
-    required_fields = ['title', 'author', 'total_copies', 'available_copies']
-    for field in required_fields:
-        if field not in data or not data[field]:
-            return jsonify(message=f"'{field}' is required and cannot be empty"), 422
+    image = request.files['image']
 
-    try:
-        total_copies = int(data['total_copies'])
-        available_copies = int(data['available_copies'])
-    except ValueError:
-        return jsonify(message="'total_copies' and 'available_copies' must be integers"), 422
+    if image.filename == '':
+        return jsonify({"error": "No selected file"}), 400
 
-    new_book = Book(
-        title=data['title'],
-        author=data['author'],
-        genre=data.get('genre'),
-        published_date=data.get('published_date'),
-        total_copies=total_copies,
-        available_copies=available_copies
-    )
-    db.session.add(new_book)
-    db.session.commit()
+    if image and allowed_file(image.filename):
+        filename = secure_filename(image.filename)
+        image.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
 
-    return jsonify(message="Book added successfully"), 201
+        # Save other book details in the database
+        title = request.form['title']
+        author = request.form['author']
+
+        new_book = Book(title=title, author=author, image_filename=filename)
+        db.session.add(new_book)
+        db.session.commit()
+
+        return jsonify({"message": "Book added successfully"}), 201
+    else:
+        return jsonify({"error": "Invalid file type"}), 400
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in {'png', 'jpg', 'jpeg', 'gif'}
 
 @app.route('/books/<int:id>', methods=['PUT'])
 @role_required('admin')
@@ -229,7 +254,7 @@ def delete_book(id):
 
 # CRUD operations for Customers
 @app.route('/customers', methods=['GET'])
-@role_required('admin')
+@jwt_required()
 def get_customers():
     customers = Customer.query.filter_by(is_deleted=False).all()
     return jsonify([customer.as_dict() for customer in customers])
@@ -246,23 +271,15 @@ def get_customer(id):
 @role_required('admin')
 def add_customer():
     data = request.get_json()
-
-    # Validate request data
-    required_fields = ['name', 'user_id']
-    for field in required_fields:
-        if field not in data or not data[field]:
-            return jsonify(message=f"'{field}' is required and cannot be empty"), 422
-
     new_customer = Customer(
-        user_id=data['user_id'],
-        name=data['name'],
+        user_id=data.get('user_id'),
+        name=data.get('name'),
         phone_number=data.get('phone_number'),
         email=data.get('email'),
         address=data.get('address')
     )
     db.session.add(new_customer)
     db.session.commit()
-
     return jsonify(message="Customer added successfully"), 201
 
 @app.route('/customers/<int:id>', methods=['PUT'])
@@ -296,53 +313,55 @@ def delete_customer(id):
 @app.route('/loans', methods=['GET'])
 @jwt_required()
 def get_loans():
-    loans = Loan.query.filter_by(is_deleted=False).all()
-    return jsonify([loan.as_dict() for loan in loans])
+    try:
+        loans = Loan.query.filter_by(is_deleted=False).all()
+        # Example of processing dates correctly before returning JSON response
+        loans_data = [{
+            'id': loan.id,
+            'customer_id': loan.customer_id,
+            'book_id': loan.book_id,
+            'loan_date': loan.loan_date.isoformat(),  # Ensure date is in ISO 8601 format
+            'return_date': loan.return_date.isoformat() if loan.return_date else None,
+            'is_returned': loan.is_returned
+        } for loan in loans]
+        
+        return jsonify(loans_data), 200
 
-@app.route('/loans/<int:id>', methods=['GET'])
-@jwt_required()
-def get_loan(id):
-    loan = Loan.query.get_or_404(id)
-    if loan.is_deleted:
-        return jsonify(error="Loan not found"), 404
-    return jsonify(loan.as_dict())
+    except Exception as e:
+        return jsonify(error=str(e)), 500
 
 @app.route('/loans', methods=['POST'])
-@jwt_required()
-def add_loan():
+@role_required('admin')
+def add_loan_admin():
     data = request.get_json()
-
-    # Validate request data
-    required_fields = ['book_id', 'customer_id', 'loan_date', 'due_date']
-    for field in required_fields:
-        if field not in data or not data[field]:
-            return jsonify(message=f"'{field}' is required and cannot be empty"), 422
+    book_id = data.get('book_id')
+    customer_id = data.get('customer_id')
+    loan_date = datetime.strptime(data.get('loan_date'), '%Y-%m-%d %H:%M:%S')
+    return_date = datetime.strptime(data.get('return_date'), '%Y-%m-%d %H:%M:%S')
+    due_date = datetime.strptime(data.get('due_date'), '%Y-%m-%d %H:%M:%S')
 
     new_loan = Loan(
-        book_id=data['book_id'],
-        customer_id=data['customer_id'],
-        loan_date=data['loan_date'],
-        due_date=data['due_date']
+        book_id=book_id,
+        customer_id=customer_id,
+        loan_date=loan_date,
+        return_date=return_date,
+        due_date=due_date
     )
     db.session.add(new_loan)
     db.session.commit()
-
     return jsonify(message="Loan added successfully"), 201
 
 @app.route('/loans/<int:id>', methods=['PUT'])
-@jwt_required()
+@role_required('admin')
 def update_loan(id):
     loan = Loan.query.get_or_404(id)
     if loan.is_deleted:
         return jsonify(error="Loan not found"), 404
 
     data = request.get_json()
-    loan.book_id = data.get('book_id', loan.book_id)
-    loan.customer_id = data.get('customer_id', loan.customer_id)
-    loan.loan_date = data.get('loan_date', loan.loan_date)
-    loan.return_date = data.get('return_date', loan.return_date)
-    loan.due_date = data.get('due_date', loan.due_date)
-    loan.returned = data.get('returned', loan.returned)
+    loan.loan_date = datetime.strptime(data.get('loan_date'), '%Y-%m-%d %H:%M:%S')
+    loan.return_date = datetime.strptime(data.get('return_date'), '%Y-%m-%d %H:%M:%S')
+    loan.due_date = datetime.strptime(data.get('due_date'), '%Y-%m-%d %H:%M:%S')
 
     db.session.commit()
     return jsonify(message="Loan updated successfully")
@@ -358,51 +377,22 @@ def delete_loan(id):
     db.session.commit()
     return jsonify(message="Loan deleted successfully")
 
-# Return a book
-@app.route('/loans/<int:id>/return', methods=['PUT'])
-@jwt_required()
-def return_book(id):
-    loan = Loan.query.get_or_404(id)
-    if loan.is_deleted:
-        return jsonify(error="Loan not found"), 404
-
-    data = request.get_json()
-    loan.return_date = data.get('return_date', loan.return_date)
-    loan.returned = True
-
-    # Update the availability of the book
-    book = Book.query.get(loan.book_id)
-    if book:
-        book.available_copies += 1
-
-    db.session.commit()
-    return jsonify(message="Book returned successfully")
-
-# Upload an image for a book
-@app.route('/upload/<int:book_id>', methods=['POST'])
-@role_required('admin')
-def upload_image(book_id):
-    if 'file' not in request.files:
-        return jsonify(message="No file part"), 400
-    file = request.files['file']
-    if file.filename == '':
-        return jsonify(message="No selected file"), 400
-    if file and allowed_file(file.filename):
-        filename = secure_filename(file.filename)
-        file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-
-        book = Book.query.get_or_404(book_id)
-        book.image_filename = filename
-        db.session.commit()
-
-        return jsonify(message="Image uploaded successfully", filename=filename), 201
-    return jsonify(message="File not allowed"), 400
-
 # Serve uploaded images
 @app.route('/media/<filename>')
-def serve_image(filename):
+def uploaded_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
-# Main block to run the app
+# Error handling for 404 - Not Found
+@app.errorhandler(404)
+def not_found_error(error):
+    return jsonify(error="Not found"), 404
+
+# Error handling for 500 - Internal Server Error
+@app.errorhandler(500)
+def internal_error(error):
+    db.session.rollback()
+    return jsonify(error="Internal server error"), 500
+
 if __name__ == '__main__':
-    app.run(debug=True)
+      db.create_all()
+      app.run(debug=True)
