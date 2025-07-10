@@ -1,3 +1,92 @@
+This is a simple Enterprise Library Management Node.js and Express API that allows users to upload book details along with a cover image. Uploaded images are stored on the server,
+ and book information is managed in memory (mock database).
+
+🚀 Features
+Upload books with image cover (Multer for file handling)
+
+Store image files in the /uploads directory
+
+REST API:
+
+GET /api/books - Retrieve all books
+
+POST /api/books - Add a new book with image
+
+DELETE /api/books/:id - Delete a book by ID
+
+Auto-generates unique IDs for books
+
+Image file served via static route
+
+📂 Project Structure
+📦 backend/
+│
+├── 📁 pycache/ 
+├── 📁 backend/ 
+├── 📁 env/ 
+├── 📁 instance
+├── 📁 logs/ # Application logs
+├── 📁 media/ # Media uploads
+│ └── 📁 images/
+│ 
+├── 📁 migrations/ # DB migration files
+├── 📁 static/ # Static files (CSS, JS, etc.)
+├── 📁 uploads/ # Uploaded files
+├── 📁 flask/ # Flask app modules (routes, models, etc.)
+├── 📄 app.py # Flask application entry point
+├── 📄 readme.md # Project documentation
+├── 📄 admin_books.html
+├── 📄 costomer_profile.html
+├── 📄 home.html
+├── 📄 index.html
+├── 📄 main.py
+└── 
+
+Express
+
+Multer (for image uploads)
+
+UUID (for unique IDs)
+
+📦 Install & Run
+bash
+Copy
+Edit
+npm install
+node server.js
+Server will start on: http://localhost:3000
+
+📥 API Example
+➕ Add Book (with image)
+POST /api/books
+
+Form Data (multipart/form-data):
+
+title: string
+
+author: string
+
+description: string
+
+image: file (image upload)
+
+📖 Get All Books
+GET /api/books
+
+Returns JSON of all added books.
+
+❌ Delete a Book
+DELETE /api/books/:id
+
+Deletes book by ID.
+
+📌 Notes
+This version uses in-memory storage. Data is lost on restart.
+
+Use a real database (e.g., MongoDB or SQLite) for production.
+
+Images are served from /uploads/image-name.jpg.
+
 ## Register an Admin:
 
 #curl -X POST http://127.0.0.1:5000/register_admin -H "Content-Type: application/json" -d '{"username": "admin_user", "password": "admin_password"}'
@@ -9,3 +98,4 @@
 #Add a Book (Admin Only):
 
 #curl -X POST http://127.0.0.1:5000/books -H "Content-Type: application/json" -H "Authorization: Bearer <access_token>" -d '{"title": "Book Title", "author": "Author Name", "total_copies": 10, "available_copies": 10}'
+
